@@ -1,25 +1,42 @@
 # This is a template for a Ruby scraper on morph.io (https://morph.io)
 # including some code snippets below that you should find helpful
 
-# require 'scraperwiki'
-# require 'mechanize'
-#
-# agent = Mechanize.new
-#
-# # Read in a page
-# page = agent.get("http://foo.com")
-#
-# # Find somehing on the page using css selectors
-# p page.at('div.content')
-#
-# # Write out to the sqlite database using scraperwiki library
-# ScraperWiki.save_sqlite(["name"], {"name" => "susan", "occupation" => "software developer"})
-#
-# # An arbitrary query against the database
-# ScraperWiki.select("* from data where 'name'='peter'")
+require 'nokogiri'
+require 'open-uri'
+require 'scraperwiki'
 
-# You don't have to do things with the Mechanize or ScraperWiki libraries.
-# You can use whatever gems you want: https://morph.io/documentation/ruby
-# All that matters is that your final data is written to an SQLite database
-# called "data.sqlite" in the current working directory which has at least a table
-# called "data".
+def fetch(url)
+  p url
+  Nokogiri::HTML.parse(open(url).read)
+end
+
+result = []
+baseurl = 'http://www.kommunenokkelen.no'
+
+begin
+  front = fetch(baseurl)
+
+  front.css('a').select { |e| e.text =~ /^\d\d/ }.map { |e| baseurl + e.attr('href') }.each do |county_url|
+    county = fetch(county_url)
+
+    county.css('a').select { |e| e.text.strip =~ /^\d{4}$/ }.map { |e| e.attr('href') }.each do |muni_url|
+      muni = fetch(muni_url)
+      muni_result = {}
+
+      muni.css('#id_KNvisningstabell tr').map { |row|
+        vals = row.css('td').map { |e| e.text.strip }
+        vals[0] = vals[0].gsub(/[.\/-]/, "").downcase;
+
+        unless vals[0].empty?
+          muni_result[vals[0]] = vals[1]
+        end
+      }
+
+      p muni_result
+
+      if muni_result["kommunenr"]
+        ScraperWiki.save_sqlite(["kommunenr"], muni_result)
+      end
+    end
+  end
+end
