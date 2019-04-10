@@ -1,7 +1,6 @@
-require 'pp'
 require 'nokogiri'
 require 'open-uri'
-# require 'scraperwiki'
+require 'scraperwiki'
 
 def fetch(url)
   p url
@@ -27,10 +26,10 @@ begin
       end
     }
 
-    pp muni_result
+    # p muni_result
 
     if muni_result["kommunenr"]
-      # ScraperWiki.save_sqlite(["kommunenr"], muni_result)
+      ScraperWiki.save_sqlite(["kommunenr"], muni_result)
     end
   end
 end
